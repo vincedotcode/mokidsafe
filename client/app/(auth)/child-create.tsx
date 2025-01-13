@@ -1,0 +1,385 @@
+import React, { useState, useEffect } from "react";
+import {
+    View,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    StyleSheet,
+    Alert,
+    ScrollView,
+    Modal,
+    Button,
+    Image,
+} from "react-native";
+import Spinner from "react-native-loading-spinner-overlay";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter } from "expo-router";
+import SafeAreaViewWithKeyboard from "@/components/layout/safe-area-view";
+import HeaderWithBackButton from "@/components/layout/back-header";
+import ApiClient from "@/api/client";
+import useParentDetails from "@/hooks/useParentDetails";
+import { useAuth } from "@clerk/clerk-expo";
+import SvgImage from "@/components/layout/svg-image";
+import { SvgUri } from "react-native-svg";
+import ReusableButton from "@/components/Button";
+
+
+interface EmergencyContact {
+    name: string;
+    phoneNumber: string;
+    relationship: string;
+}
+
+interface Child {
+    name: string;
+    age: number;
+    familyCode: string;
+    profilePicture: string;
+    emergencyContacts: EmergencyContact[];
+}
+
+export default function CreateChildScreen(): JSX.Element {
+    const { userId: clerkId } = useAuth();
+    const { parentDetails, loading: parentLoading, error, refetch } = useParentDetails(clerkId || "");
+    const [name, setName] = useState<string>("");
+    const [age, setAge] = useState<string>("");
+    const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>([
+        { name: "", phoneNumber: "", relationship: "" },
+    ]);
+    const [loading, setLoading] = useState<boolean>(false);
+    const [children, setChildren] = useState<Child[]>([]);
+    const [modalVisible, setModalVisible] = useState<boolean>(false);
+    const [showCreateForm, setShowCreateForm] = useState<boolean>(false);
+    const [parentIdMongo, setParentIdMongo] = useState<string>("");
+    const router = useRouter();
+
+
+
+    useEffect(() => {
+        const fetchChildren = async () => {
+            try {
+                console.log(clerkId)
+                if (!clerkId) return;
+
+                setLoading(true);
+
+                const parents = await ApiClient.get(`/parents/clerk/${clerkId}`);
+
+                console.log(parents)
+                const response = await ApiClient.get(`/children/by-parent/${parents.data.parent._id}`);
+
+                setParentIdMongo(parents.data.parent._id)
+                if (response.data.success) {
+                    setChildren(response.data.children);
+                } else {
+                    throw new Error("Failed to fetch children.");
+                }
+            } catch (err) {
+                Alert.alert("Error", "Failed to load children.");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchChildren();
+    }, [clerkId]);
+
+
+
+    const handleAddContact = (): void => {
+        setEmergencyContacts([
+            ...emergencyContacts,
+            { name: "", phoneNumber: "", relationship: "" },
+        ]);
+    };
+
+    const handleContactChange = (index: number, field: keyof EmergencyContact, value: string): void => {
+        const updatedContacts = [...emergencyContacts];
+        updatedContacts[index][field] = value;
+        setEmergencyContacts(updatedContacts);
+    };
+
+    const generateFamilyCode = (): string => {
+        return Math.floor(100000 + Math.random() * 900000).toString().padStart(6, "0");
+    };
+
+    const handleSubmit = async (): Promise<void> => {
+        if (!name || !age) {
+            Alert.alert("Error", "All fields are required.");
+            return;
+        }
+
+        if (!parentDetails) {
+            Alert.alert("Error", "Parent details are missing. Please try again.");
+            return;
+        }
+
+        setLoading(true);
+
+
+        try {
+
+            const generatedFamilyCode = generateFamilyCode();
+            const profilePicture = `https://api.dicebear.com/9.x/pixel-art/svg?seed=${name.replace(/ /g, "_")}`;
+
+            const child: Child = {
+                name,
+                age: parseInt(age, 10),
+                familyCode: generatedFamilyCode,
+                profilePicture,
+                emergencyContacts,
+            };
+
+            const response = await ApiClient.post("/children/create", {
+                ...child,
+                parentId: parentIdMongo,
+            });
+
+
+            if (response.data.success) {
+                setChildren((prev) => [...prev, child]);
+                setName("");
+                setAge("");
+                setEmergencyContacts([{ name: "", phoneNumber: "", relationship: "" }]);
+                setModalVisible(false);
+                setShowCreateForm(false);
+                Alert.alert("Success", "Child created successfully.");
+            }
+        } catch (err) {
+            Alert.alert("Error", "Failed to create child. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <SafeAreaViewWithKeyboard style={styles.safeArea}>
+            <HeaderWithBackButton backRoute="/(auth)/dashboard" />
+            <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+                <Spinner visible={loading || parentLoading} />
+
+                {!showCreateForm && (
+                    <ReusableButton
+                        label="Add Child"
+                        onPress={() => setShowCreateForm(true)}
+                        backgroundColor="#000"
+                        textColor="#FFF"
+                    />
+                )}
+
+                {showCreateForm && (
+                    <View style={styles.card}>
+                        <Text style={styles.title}>Create Child</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Child's Name"
+                            placeholderTextColor="#aaa"
+                            value={name}
+                            onChangeText={setName}
+                        />
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Child's Age"
+                            placeholderTextColor="#aaa"
+                            keyboardType="number-pad"
+                            value={age}
+                            onChangeText={setAge}
+                        />
+
+                        <Text style={styles.sectionTitle}>Emergency Contacts</Text>
+                        {emergencyContacts.map((contact, index) => (
+                            <View key={index} style={styles.contactContainer}>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Name"
+                                    placeholderTextColor="#aaa"
+                                    value={contact.name}
+                                    onChangeText={(value) =>
+                                        handleContactChange(index, "name", value)
+                                    }
+                                />
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Phone Number"
+                                    placeholderTextColor="#aaa"
+                                    keyboardType="phone-pad"
+                                    value={contact.phoneNumber}
+                                    onChangeText={(value) =>
+                                        handleContactChange(index, "phoneNumber", value)
+                                    }
+                                />
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Relationship"
+                                    placeholderTextColor="#aaa"
+                                    value={contact.relationship}
+                                    onChangeText={(value) =>
+                                        handleContactChange(index, "relationship", value)
+                                    }
+                                />
+                            </View>
+                        ))}
+                        <TouchableOpacity
+                            style={styles.addButton}
+                            onPress={handleAddContact}
+                        >
+                            <Text style={styles.addButtonText}>+ Add Contact</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={styles.button} onPress={handleSubmit}>
+                            <Text style={styles.buttonText}>Create Child</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+
+                {children.length > 0 ? (
+                    children.map((child, index) => (
+                        <View key={index} style={styles.childCard}>
+                            <View style={styles.container}>
+                                <SvgUri
+                                    width={80}
+                                    height={80}
+                                    uri={child.profilePicture}
+                                />
+                            </View>
+
+                            <Text style={styles.childName}>{child.name}</Text>
+                            <Text style={styles.childCode}>Family Code: {child.familyCode}</Text>
+                        </View>
+                    ))
+                ) : (
+                    <View style={styles.noChildrenCard}>
+                        <Text style={styles.noChildrenText}>No children found. Please add a child.</Text>
+                    </View>
+                )}
+
+            </ScrollView>
+            <ReusableButton
+                label="Confirm"
+                onPress={() => router.replace("/(parents)")}
+                backgroundColor="#008000"
+                textColor="#FFF"
+            />
+        </SafeAreaViewWithKeyboard>
+    );
+}
+//42170
+const styles = StyleSheet.create({
+    safeArea: {
+        flex: 1,
+        backgroundColor: "#F5C543",
+    },
+    container: {
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 16,
+    },
+    card: {
+        width: "85%",
+        backgroundColor: "#FFF",
+        borderRadius: 16,
+        padding: 20,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 6,
+        elevation: 6,
+    },
+    title: {
+        fontSize: 22,
+        fontWeight: "bold",
+        color: "#000",
+        marginBottom: 16,
+        textAlign: "center",
+    },
+    input: {
+        width: "100%",
+        backgroundColor: "#F9F9F9",
+        borderRadius: 8,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        fontSize: 16,
+        color: "#000",
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: "#E0E0E0",
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: "bold",
+        color: "#000",
+        marginVertical: 8,
+    },
+    contactContainer: {
+        marginBottom: 16,
+    },
+    addButton: {
+        alignSelf: "flex-start",
+        marginBottom: 16,
+    },
+    addButtonText: {
+        fontSize: 16,
+        fontWeight: "bold",
+        color: "#000",
+    },
+    button: {
+        width: "100%",
+        backgroundColor: "#F5C543",
+        paddingVertical: 14,
+        borderRadius: 8,
+        alignItems: "center",
+    },
+    buttonText: {
+        fontSize: 18,
+        fontWeight: "600",
+        backgroundColor: "#0000",
+        color: "#000",
+    },
+    childCard: {
+        width: "85%",
+        backgroundColor: "#FFF",
+        borderRadius: 16,
+        padding: 16,
+        marginVertical: 8,
+        alignItems: "center",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 6,
+        elevation: 6,
+    },
+    childAvatar: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        marginBottom: 10,
+    },
+    childName: {
+        fontSize: 18,
+        fontWeight: "bold",
+        color: "#000",
+    },
+    childCode: {
+        fontSize: 16,
+        color: "#555",
+    },
+    noChildrenCard: {
+        width: "85%",
+        backgroundColor: "#FFF",
+        borderRadius: 16,
+        padding: 16,
+        marginVertical: 8,
+        alignItems: "center",
+        justifyContent: "center",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 6,
+        elevation: 6,
+    },
+    noChildrenText: {
+        fontSize: 16,
+        color: "#555",
+        textAlign: "center",
+    },
+});
