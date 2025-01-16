@@ -23,13 +23,7 @@ export default function ParentHomeScreen() {
 
   return (
     <View style={styles.container}>
-      <Header
-        title="SecureNest"
-        profileImage={mockProfileImage}
-        onNotificationPress={() => alert("Notification Pressed")}
-        notificationCount={1}
-      />
-
+  
       {/* Map Section */}
       <MapView
         style={styles.map}

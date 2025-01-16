@@ -5,11 +5,11 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { ClerkProvider, useAuth } from '@clerk/clerk-expo';
-import * as Notifications from "expo-notifications";
-import * as Location from "expo-location";
 import * as SecureStore from 'expo-secure-store';
 import 'react-native-reanimated';
 import "../global.css";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useHasChild } from "@/hooks/useHasChild"; 
 
 import { useColorScheme } from '@/hooks/useColorScheme';
 
@@ -38,38 +38,61 @@ const tokenCache = {
   },
 };
 
-const checkPermissions = async () => {
-  const { status: notificationStatus } = await Notifications.getPermissionsAsync();
-  const { status: locationStatus } = await Location.getForegroundPermissionsAsync();
-
-  if (notificationStatus !== "granted" || locationStatus !== "granted") {
-    router.replace("/(auth)/user-permission");
-    return false;
-  }
-  return true;
-};
 
 // Authentication flow and routing logic
 const InitialLayout = () => {
   const { isLoaded, isSignedIn } = useAuth();
+  const { hasChild, loading: hasChildLoading } = useHasChild(); // <-- Retrieve the hasChild value
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoaded) return;
+    // Wait until Clerk has loaded, and our hasChild check has finished
+    if (!isLoaded || hasChildLoading) return;
 
     const handleRouting = async () => {
-      const hasPermissions = await checkPermissions();
+      try {
+        // 1) If the user is NOT signed in
+        if (!isSignedIn) {
+          const isFirstTimeUser = await AsyncStorage.getItem("isFirstTimeUser");
+          
+          // If first-time user
+          if (isFirstTimeUser === null) {
+            await AsyncStorage.setItem("isFirstTimeUser", "false");
+            router.replace("/");
+          } else {
+            // Not first-time, go to the (auth) stack
+            router.replace("/(auth)");
+          }
+          return;
+        }
 
-      if (isSignedIn) {
-        router.replace("/(auth)/child-create");
-      } else if (!isSignedIn) {
-        router.replace("/");
+        // 2) If the user IS signed in, check if child or parent
+        const isChild = await AsyncStorage.getItem("isChild");
+        const isParent = await AsyncStorage.getItem("isParent");
+
+        if (isChild === "true" && isSignedIn) {
+          // Signed in and is a child
+          router.replace("/(child)");
+        } else if (isParent === "true") {
+          // Signed in and is a parent
+          if (hasChild) {
+            // Parent already has children
+            router.replace("/(parents)");
+          } else {
+            // Parent has no children yet
+            router.replace("/(auth)/child-create");
+          }
+        } else {
+          router.replace("/(auth)");
+        }
+      } catch (error) {
+        console.error("Error checking user status:", error);
       }
     };
 
     handleRouting();
-  }, [isLoaded, isSignedIn]);
+  }, [isLoaded, isSignedIn, hasChild, hasChildLoading, router]);
 
   return <Slot />;
 };

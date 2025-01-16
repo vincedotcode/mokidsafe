@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,16 +6,28 @@ import {
   TouchableOpacity,
   Alert,
   Linking,
-  Platform,
 } from "react-native";
 import * as Notifications from "expo-notifications";
 import * as Location from "expo-location";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import HeaderWithBackButton from "@/components/layout/back-header";
 import SafeAreaViewWithKeyboard from "@/components/layout/safe-area-view";
 
 const PermissionsScreen = () => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [locationEnabled, setLocationEnabled] = useState(false);
+  const { from } = useLocalSearchParams();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (notificationsEnabled && locationEnabled) {
+      if (from === "/parent-login") {
+        router.replace("/(parents)");
+      } else {
+        router.replace("/(child)");
+      }
+    }
+  }, [notificationsEnabled, locationEnabled, from, router]);
 
   const openAppSettings = () => {
     Linking.openSettings().catch(() =>
@@ -28,7 +40,6 @@ const PermissionsScreen = () => {
 
   const handleEnableNotifications = async () => {
     const { status } = await Notifications.requestPermissionsAsync();
-
     if (status === "granted") {
       Alert.alert("Success", "Push Notifications enabled!");
       setNotificationsEnabled(true);
@@ -46,7 +57,6 @@ const PermissionsScreen = () => {
 
   const handleEnableLocation = async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
-
     if (status === "granted") {
       Alert.alert("Success", "Location access enabled!");
       setLocationEnabled(true);
@@ -64,10 +74,8 @@ const PermissionsScreen = () => {
 
   return (
     <SafeAreaViewWithKeyboard style={styles.safeArea}>
-      {/* Header */}
       <HeaderWithBackButton backRoute="/(auth)/user-permission" />
 
-      {/* Main Content */}
       <View style={styles.contentContainer}>
         <Text style={styles.title}>
           SecureNest requires these permissions to work

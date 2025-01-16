@@ -11,7 +11,11 @@ import {
 import Spinner from "react-native-loading-spinner-overlay";
 import { useSignIn } from "@clerk/clerk-expo";
 import * as SecureStore from "expo-secure-store";
-import {  useRouter } from "expo-router";
+import { useRouter, usePathname } from "expo-router";
+import * as Notifications from "expo-notifications";
+import * as Location from "expo-location";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 
 const saveCredentials = async (email: string, password: string) => {
   await SecureStore.setItemAsync("email", email);
@@ -33,6 +37,7 @@ export default function ParentLoginScreen() {
   const { signIn, setActive, isLoaded } = useSignIn();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const pathname = usePathname(); // This provides the current route's path
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 const router = useRouter();
@@ -47,7 +52,17 @@ const router = useRouter();
     };
     loadStoredCredentials();
   }, []);
-
+  const checkPermissions = async () => {
+    const { status: notificationStatus } = await Notifications.getPermissionsAsync();
+    const { status: locationStatus } = await Location.getForegroundPermissionsAsync();
+  
+    if (notificationStatus !== "granted" || locationStatus !== "granted") {
+      router.replace("/(auth)/user-permission");
+      return false;
+    }
+    return true;
+  };
+  
   const handleLogin = async () => {
     if (!isLoaded) {
       return;
@@ -66,7 +81,19 @@ const router = useRouter();
         await clearCredentials();
       }
       Alert.alert("Login Successful", "You are now logged in!");
-      router.replace("../(auth)/user-permission")
+      await AsyncStorage.setItem("isParent", "true");
+
+      const hasPermissions = await checkPermissions();
+      if (hasPermissions) {
+        router.push({
+          pathname: "/(auth)/user-permission",
+          params: { from: pathname }, // Pass the current path
+        });
+      }
+      else {
+        router.replace("/(parents)");
+
+      }
     } catch (err: any) {
       Alert.alert("Login Failed", err.message || "Please try again.");
     } finally {
@@ -75,7 +102,8 @@ const router = useRouter();
   };
 
   const handleForgotPassword = () => {
-    Alert.alert("Forgot Password", "Redirecting to password recovery...");
+    router.replace("/(auth)/forgot-password");
+
   };
 
   return (

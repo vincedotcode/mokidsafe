@@ -10,6 +10,7 @@ import {
     Modal,
     Button,
     Image,
+    Share,
 } from "react-native";
 import Spinner from "react-native-loading-spinner-overlay";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -22,6 +23,7 @@ import { useAuth } from "@clerk/clerk-expo";
 import SvgImage from "@/components/layout/svg-image";
 import { SvgUri } from "react-native-svg";
 import ReusableButton from "@/components/Button";
+import { Ionicons } from "@expo/vector-icons";
 
 
 interface EmergencyContact {
@@ -58,16 +60,10 @@ export default function CreateChildScreen(): JSX.Element {
     useEffect(() => {
         const fetchChildren = async () => {
             try {
-                console.log(clerkId)
                 if (!clerkId) return;
-
                 setLoading(true);
-
                 const parents = await ApiClient.get(`/parents/clerk/${clerkId}`);
-
-                console.log(parents)
                 const response = await ApiClient.get(`/children/by-parent/${parents.data.parent._id}`);
-
                 setParentIdMongo(parents.data.parent._id)
                 if (response.data.success) {
                     setChildren(response.data.children);
@@ -75,7 +71,7 @@ export default function CreateChildScreen(): JSX.Element {
                     throw new Error("Failed to fetch children.");
                 }
             } catch (err) {
-                Alert.alert("Error", "Failed to load children.");
+                console.log(err)
             } finally {
                 setLoading(false);
             }
@@ -130,6 +126,16 @@ export default function CreateChildScreen(): JSX.Element {
                 emergencyContacts,
             };
 
+            const localChildrenString = await AsyncStorage.getItem("childrenData");
+            let localChildren: Child[] = localChildrenString
+                ? JSON.parse(localChildrenString)
+                : [];
+
+            // Add the new child
+            localChildren.push(child);
+
+
+
             const response = await ApiClient.post("/children/create", {
                 ...child,
                 parentId: parentIdMongo,
@@ -144,6 +150,11 @@ export default function CreateChildScreen(): JSX.Element {
                 setModalVisible(false);
                 setShowCreateForm(false);
                 Alert.alert("Success", "Child created successfully.");
+                // Save updated array to AsyncStorage
+                await AsyncStorage.setItem("childrenData", JSON.stringify(localChildren));
+
+                // Set hasChild to "true"
+                await AsyncStorage.setItem("hasChild", "true");
             }
         } catch (err) {
             Alert.alert("Error", "Failed to create child. Please try again.");
@@ -245,6 +256,24 @@ export default function CreateChildScreen(): JSX.Element {
 
                             <Text style={styles.childName}>{child.name}</Text>
                             <Text style={styles.childCode}>Family Code: {child.familyCode}</Text>
+
+                            <TouchableOpacity
+                                style={styles.shareButton}
+                                onPress={async () => {
+                                    try {
+                                        await Share.share({
+                                            message: `Here is the family code for ${child.name}: ${child.familyCode}.`,
+                                            url: child.profilePicture, // Optional: Include the picture URL
+                                            title: "Share Family Code",
+                                        });
+                                    } catch (error) {
+                                        Alert.alert("Error", "Failed to share family code.");
+                                    }
+                                }}
+                            >
+                                <Ionicons name="share-social-outline" size={24} color="#FFF" />
+                                <Text style={styles.shareButtonText}>Share</Text>
+                            </TouchableOpacity>
                         </View>
                     ))
                 ) : (
@@ -252,6 +281,7 @@ export default function CreateChildScreen(): JSX.Element {
                         <Text style={styles.noChildrenText}>No children found. Please add a child.</Text>
                     </View>
                 )}
+
 
             </ScrollView>
             <ReusableButton
@@ -382,4 +412,20 @@ const styles = StyleSheet.create({
         color: "#555",
         textAlign: "center",
     },
+
+    shareButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginTop: 10,
+        backgroundColor: "#000",
+        padding: 10,
+        borderRadius: 8,
+    },
+    shareButtonText: {
+        marginLeft: 8,
+        color: "#FFF",
+        fontSize: 14,
+        fontWeight: "bold",
+    },
+
 });

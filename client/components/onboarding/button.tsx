@@ -7,6 +7,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { theme } from '../../constants/theme';
 import { useRouter } from "expo-router";
@@ -54,10 +55,11 @@ export function Button({
     };
   });
 
-  const handleNextScreen = () => {
+  const handleNextScreen = async () => {
     const isLastScreen = flatListIndex.value === dataLength - 1;
     if (isLastScreen) {
       // Navigate to the (auth) layout
+      await AsyncStorage.setItem('isFirstTimeUser', 'false');
       router.push("/(auth)");
     } else {
       // Scroll to the next index

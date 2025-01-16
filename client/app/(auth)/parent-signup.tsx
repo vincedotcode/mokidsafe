@@ -14,6 +14,7 @@ import SignInWithOAuth from "@/components/auth/sign-in-google";
 import { useRouter } from "expo-router";
 import SafeAreaViewWithKeyboard from "@/components/layout/safe-area-view";
 import HeaderWithBackButton from "@/components/layout/back-header";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function ParentSignUpScreen() {
   const { isLoaded, signUp, setActive } = useSignUp();
@@ -60,7 +61,7 @@ export default function ParentSignUpScreen() {
     if (!isLoaded) {
       return;
     }
-
+    await AsyncStorage.setItem("isParent", "true");
     setLoading(true);
     try {
       const completeSignUp = await signUp.attemptEmailAddressVerification({

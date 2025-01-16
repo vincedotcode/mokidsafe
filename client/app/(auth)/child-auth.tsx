@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import ApiClient from "../../api/client";
 import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function ChildAuthScreen() {
   const [code, setCode] = useState<string[]>(["", "", "", "", "", ""]);
@@ -29,16 +30,19 @@ export default function ChildAuthScreen() {
     const enteredCode = code.join("");
     if (enteredCode.length === 6) {
       try {
+        console.log(enteredCode)
         const response = await ApiClient.post("/children/authenticate", {
           familyCode: enteredCode,
         });
-        const { parent } = response.data;
-        Alert.alert("Authentication Successful", `You are the child of ${parent.name}`);
-        router.push({
-          pathname: "/child-login",
-          params: { parentName: parent.name, parentId: parent._id },
-        });
+        console.log(response.data.child)
+        const { child } = response.data.child;
+        const nameofchild = response?.data?.child?.name
+        Alert.alert("Authentication Successful", `Hello ${nameofchild}`);
+        router.replace("/(child)")
+        await AsyncStorage.setItem("isChild", "true");
+      
       } catch (error: any) {
+        console.log(error)
         Alert.alert(
           "Authentication Failed",
           error.response?.data?.message || "An error occurred"
