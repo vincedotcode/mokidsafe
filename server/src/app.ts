@@ -7,6 +7,7 @@ import config from './configs';
 import ClerkWebhookRoutes from "./routes/webhook";
 import ChildRoutes from "./routes/child";
 import ParentRoutes from "./routes/parent"; // Import ParentRoutes
+import GeofenceRoutes from "./routes/geofence"; // Import ParentRoutes
 
 dotenv.config();
 
@@ -28,6 +29,7 @@ app.use(bodyParser.json());
 app.use("/api/webhooks", ClerkWebhookRoutes);
 app.use("/api/children", ChildRoutes);
 app.use("/api/parents", ParentRoutes); // Add ParentRoutes here
+app.use("/api/geofencing", GeofenceRoutes)
 
 // Swagger Documentation
 swaggerDocs(app);

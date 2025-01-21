@@ -3,25 +3,24 @@ import {
   View,
   Text,
   StyleSheet,
-  Image,
   TouchableOpacity,
   Pressable,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context"; // Import SafeAreaView
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { useAuth } from "@clerk/clerk-expo";
 
 export const Header = ({
   title,
-  profileImage,
-  onNotificationPress,
-  notificationCount,
+  showBackButton = false,
+  backRoute,
 }: {
-  title: string;
-  profileImage: string;
-  onNotificationPress: () => void;
-  notificationCount: number;
+  title?: string;
+  showBackButton?: boolean;
+  backRoute?: string;
 }) => {
+  const router = useRouter();
   const { signOut } = useAuth();
 
   const doLogout = async () => {
@@ -29,22 +28,38 @@ export const Header = ({
     alert("Logged out successfully");
   };
 
+  const handleBackPress = () => {
+    if (backRoute) {
+      router.replace(backRoute as any);
+    } else {
+      router.back();
+    }
+  };
+
+  const handleNotificationPress = () => {
+    alert("You pressed the notification icon");
+  };
+
+  const notificationCount = 3; // Example notification count
+
   return (
     <SafeAreaView edges={["top"]} style={styles.safeAreaContainer}>
       <View style={styles.headerContainer}>
-        {/* Profile Image */}
-        <TouchableOpacity>
-          <Image source={{ uri: profileImage }} style={styles.profileImage} />
-        </TouchableOpacity>
+        {/* Back Button */}
+        {showBackButton && (
+          <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
+            <Ionicons name="chevron-back" size={24} color="black" />
+          </TouchableOpacity>
+        )}
 
         {/* Title */}
-        <Text style={styles.title}>{title}</Text>
+        {title && <Text style={styles.title}>{title}</Text>}
 
-        {/* Icons Container */}
+        {/* Right Icons */}
         <View style={styles.iconsContainer}>
           {/* Notification Icon */}
           <TouchableOpacity
-            onPress={onNotificationPress}
+            onPress={handleNotificationPress}
             style={styles.notificationContainer}
           >
             <Ionicons name="notifications" size={24} color="black" />
@@ -79,12 +94,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#ddd",
   },
-  profileImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  backButton: {
+    marginRight: 16,
   },
   title: {
+    flex: 1,
+    textAlign: "center",
     fontSize: 22,
     fontWeight: "bold",
     color: "#000",

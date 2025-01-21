@@ -33,7 +33,6 @@ class ChildService {
     const { name, age, profilePicture, familyCode, parentId, emergencyContacts } = data;
 
 
-    console.log(data)
     // Check if the family code exists for the parent
     const parent = await Parent.findById( parentId );
     if (!parent) {

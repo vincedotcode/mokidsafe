@@ -73,7 +73,7 @@ const InitialLayout = () => {
 
         if (isChild === "true" && isSignedIn) {
           // Signed in and is a child
-          router.replace("/(child)");
+          router.replace("/(parents)");
         } else if (isParent === "true") {
           // Signed in and is a parent
           if (hasChild) {

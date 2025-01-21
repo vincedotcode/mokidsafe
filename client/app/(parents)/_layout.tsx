@@ -13,9 +13,6 @@ export default function TabLayout() {
         header: ({ navigation, route }) => (
           <Header
             title="SecureNest"
-            profileImage="https://via.placeholder.com/150"
-            onNotificationPress={() => alert("Notification Pressed")}
-            notificationCount={1}
           />
         ),
         tabBarStyle: {
@@ -35,11 +32,21 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="children"
         options={{
-          title: "Your Family",
+          title: "Your Children",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="people" size={size} color={color} />
+          ),
+        }}
+      />
+
+    <Tabs.Screen
+        name="settings"
+        options={{
+          title: "Settings",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="settings" size={size} color={color} />
           ),
         }}
       />
