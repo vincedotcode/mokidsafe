@@ -9,7 +9,7 @@ export default function setupSocket(io: Server) {
     });
     socket.on("sosAlert", (data) => {
       console.log("sosAlert", data);
-      io.emit("locationUpdate", data);
+      io.emit("sosAlert", data);
     });
     socket.on("disconnect", () => {
       console.log("User disconnected:", socket.id);

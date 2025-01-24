@@ -72,11 +72,7 @@ const InitialLayout = () => {
           return;
         }
         if (isParent === "true") {
-          if (hasChild) {
-            router.replace("/(parents)");
-          } else {
-            router.replace("/(auth)/child-create");
-          }
+          router.replace("/(parents)");
         } else {
           router.replace("/(auth)");
         }

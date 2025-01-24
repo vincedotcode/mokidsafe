@@ -10,9 +10,11 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAuth } from "@clerk/clerk-expo";
 
 export default function ParentSettingsScreen() {
   const router = useRouter();
+  const { signOut } = useAuth();
 
   const handleLogout = async () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
@@ -24,7 +26,7 @@ export default function ParentSettingsScreen() {
         text: "Logout",
         style: "destructive",
         onPress: async () => {
-          await AsyncStorage.clear();
+          await signOut();
           router.replace("/(auth)");
         },
       },

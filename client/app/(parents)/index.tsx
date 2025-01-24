@@ -48,6 +48,7 @@ export default function ParentHomeScreen() {
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const mapRef = useRef<MapView>(null);
+  const [mapRegion, setMapRegion] = useState<Region | null>(null);
 
   const socket = initializeSocket();
 
@@ -65,7 +66,9 @@ export default function ParentHomeScreen() {
   };
 
   const redirectToUserLocation = () => {
+    fetchUserLocation()
     if (userLocation && mapRef.current) {
+      console.log(userLocation)
       mapRef.current.animateToRegion(
         {
           latitude: userLocation.latitude,
@@ -93,6 +96,7 @@ export default function ParentHomeScreen() {
   const loadChildLocations = async () => {
     try {
       const storedData = await AsyncStorage.getItem("childLocations");
+      console.log(storedData)
       if (storedData) {
         setChildLocations(JSON.parse(storedData));
       }
@@ -180,8 +184,32 @@ export default function ParentHomeScreen() {
       fetchGeoFences(parentDetails?._id);
     }
     fetchUserLocation();
-    loadChildLocations(); // Load saved child locations on screen load
+    loadChildLocations(); 
   }, [parentDetails?._id]);
+
+  const testLocation = {
+    latitude: -20.1963851,
+    longitude: 57.7226468,
+    familyCode: "152269",
+    timestamp: new Date().toISOString(),
+  };
+
+
+  const handleZoom = (zoomFactor: number) => {
+    emitEvent("childLocationUpdate", testLocation);
+    if (mapRegion && mapRef.current) {
+      const newRegion = {
+        ...mapRegion,
+        latitudeDelta: mapRegion.latitudeDelta * zoomFactor,
+        longitudeDelta: mapRegion.longitudeDelta * zoomFactor,
+      };
+      setMapRegion(newRegion);
+      mapRef.current.animateToRegion(newRegion, 1000);
+    }
+  };
+
+
+
 
   if (loading) {
     return (
@@ -190,6 +218,7 @@ export default function ParentHomeScreen() {
       </View>
     );
   }
+
 
   return (
     <View style={styles.container}>
@@ -241,6 +270,16 @@ export default function ParentHomeScreen() {
         ))}
       </MapView>
 
+       {/* Zoom Buttons */}
+       <View style={styles.zoomControls}>
+        <TouchableOpacity style={styles.zoomButton} onPress={() => handleZoom(0.5)}>
+          <Ionicons name="add" size={24} color="#FFF" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.zoomButton} onPress={() => handleZoom(2)}>
+          <Ionicons name="remove" size={24} color="#FFF" />
+        </TouchableOpacity>
+      </View>
+
       <TouchableOpacity style={styles.myPlacesButton} onPress={redirectToUserLocation}>
         <Ionicons name="home" size={18} color="#F5C543" />
         <Text style={styles.myPlacesText}>My Location</Text>
@@ -281,5 +320,20 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+
+  zoomControls: {
+    position: "absolute",
+    bottom: 50,
+    right: 20,
+    flexDirection: "column",
+  },
+  zoomButton: {
+    backgroundColor: "#F5C543",
+    padding: 10,
+    borderRadius: 50,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
   },
 });
