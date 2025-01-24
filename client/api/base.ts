@@ -30,6 +30,7 @@ class BaseApi {
       (response) => response,
       (error) => {
         // Handle response errors globally
+        console.log(error)
         if (error.response) {
           console.error(
             `Response Error [${error.response.status}]: ${error.response.data.message || error.message}`

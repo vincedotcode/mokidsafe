@@ -47,40 +47,34 @@ const InitialLayout = () => {
   const router = useRouter();
 
   useEffect(() => {
-    // Wait until Clerk has loaded, and our hasChild check has finished
     if (!isLoaded || hasChildLoading) return;
-
+    
     const handleRouting = async () => {
       try {
-        // 1) If the user is NOT signed in
+        const isChild = await AsyncStorage.getItem("isChild");
+        const isParent = await AsyncStorage.getItem("isParent");
+        const isChildLoggedIn = await AsyncStorage.getItem("childData");
+        
         if (!isSignedIn) {
           const isFirstTimeUser = await AsyncStorage.getItem("isFirstTimeUser");
-          
-          // If first-time user
+    
           if (isFirstTimeUser === null) {
             await AsyncStorage.setItem("isFirstTimeUser", "false");
             router.replace("/");
           } else {
-            // Not first-time, go to the (auth) stack
-            router.replace("/(auth)");
+            if (isChildLoggedIn && isChild){
+              router.replace("/(child)");
+            }
+            else {
+              router.replace("/(auth)");
+            }
           }
           return;
         }
-
-        // 2) If the user IS signed in, check if child or parent
-        const isChild = await AsyncStorage.getItem("isChild");
-        const isParent = await AsyncStorage.getItem("isParent");
-
-        if (isChild === "true" && isSignedIn) {
-          // Signed in and is a child
-          router.replace("/(parents)");
-        } else if (isParent === "true") {
-          // Signed in and is a parent
+        if (isParent === "true") {
           if (hasChild) {
-            // Parent already has children
             router.replace("/(parents)");
           } else {
-            // Parent has no children yet
             router.replace("/(auth)/child-create");
           }
         } else {
@@ -90,7 +84,8 @@ const InitialLayout = () => {
         console.error("Error checking user status:", error);
       }
     };
-
+    
+    
     handleRouting();
   }, [isLoaded, isSignedIn, hasChild, hasChildLoading, router]);
 

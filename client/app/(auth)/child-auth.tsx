@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -17,10 +17,22 @@ export default function ChildAuthScreen() {
   const refs = useRef<TextInput[]>([]);
   const router = useRouter();
 
+  useEffect(() => {
+    const fetchSavedCode = async () => {
+      const savedCode = await AsyncStorage.getItem("savedFamilyCode");
+      if (savedCode) {
+        setCode(savedCode.split(""));
+      }
+    };
+
+    fetchSavedCode();
+  }, []);
+
   const handleCodeChange = (text: string, index: number) => {
     const updatedCode = [...code];
     updatedCode[index] = text;
     setCode(updatedCode);
+
     if (text && index < code.length - 1) {
       refs.current[index + 1]?.focus();
     }
@@ -30,19 +42,22 @@ export default function ChildAuthScreen() {
     const enteredCode = code.join("");
     if (enteredCode.length === 6) {
       try {
-        console.log(enteredCode)
         const response = await ApiClient.post("/children/authenticate", {
           familyCode: enteredCode,
         });
-        console.log(response.data.child)
-        const { child } = response.data.child;
-        const nameofchild = response?.data?.child?.name
-        Alert.alert("Authentication Successful", `Hello ${nameofchild}`);
-        router.replace("/(child)")
+        const { child } = response.data;
+        console.log(child);
+        const nameofchild = child.name;
+
+        // Save the family code to AsyncStorage
+        await AsyncStorage.setItem("savedFamilyCode", enteredCode);
+        await AsyncStorage.setItem("childData", JSON.stringify(child));
         await AsyncStorage.setItem("isChild", "true");
-      
+
+        Alert.alert("Authentication Successful", `Hello ${nameofchild}`);
+        router.replace("/(child)");
       } catch (error: any) {
-        console.log(error)
+        console.error("this is the error", error);
         Alert.alert(
           "Authentication Failed",
           error.response?.data?.message || "An error occurred"
@@ -52,8 +67,7 @@ export default function ChildAuthScreen() {
       Alert.alert("Invalid Code", "Please enter all 6 digits.");
     }
   };
-  
-  863360
+
   return (
     <View style={styles.container}>
       <View style={styles.logoContainer}>
@@ -81,7 +95,7 @@ export default function ChildAuthScreen() {
         <Text style={styles.buttonText}>Submit</Text>
       </TouchableOpacity>
       <Text style={styles.footerText}>
-        Don’t have? Ask your parent to invite you to the family group.
+        Don’t have a code? Ask your parent to invite you to the family group.
       </Text>
     </View>
   );
@@ -92,7 +106,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F5C543", // Background color to match design
+    backgroundColor: "#F5C543",
     padding: 16,
   },
   logoContainer: {

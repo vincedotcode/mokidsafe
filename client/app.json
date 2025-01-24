@@ -24,6 +24,12 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow this app to access your location at all times."
+        }
+      ],
       "expo-router",
       [
         "expo-splash-screen",

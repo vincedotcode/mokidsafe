@@ -84,19 +84,6 @@ export default function ParentSettingsScreen() {
           <Switch value={true} onValueChange={() => Alert.alert("Toggled")} />
         </View>
       </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Child Management</Text>
-        <TouchableOpacity style={styles.option} onPress={handleManageChildren}>
-          <Text style={styles.optionText}>Manage Children</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.option}
-          onPress={() => Alert.alert("Feature Coming Soon", "Invite Child")}
-        >
-          <Text style={styles.optionText}>Invite Child</Text>
-        </TouchableOpacity>
-      </View>
     </ScrollView>
   );
 }
