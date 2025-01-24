@@ -63,11 +63,13 @@ export const emitEvent = (event: string, data: any): void => {
  */
 export const listenToEvent = (event: string, callback: (data: any) => void): void => {
   if (socket) {
+    console.log(`Listening to event: ${event} `);
     socket.on(event, callback);
   } else {
     console.error("Socket is not initialized. Cannot listen to event.");
   }
 };
+
 
 /**
  * Remove a specific event listener.

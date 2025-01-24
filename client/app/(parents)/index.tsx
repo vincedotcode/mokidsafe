@@ -9,16 +9,12 @@ import {
 } from "react-native";
 import MapView, { Marker, Circle, Region } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
-import { io } from "socket.io-client";
-import { initializeSocket, disconnectSocket, emitEvent,listenToEvent } from "@/utils/socket";
-
-// Example imports for your auth and parent details hooks
-import { useAuth } from "@clerk/clerk-expo";         // <--- Your actual path
-import useParentDetails  from "@/hooks/useParentDetails"; // <--- Your actual path
-
-// If you prefer the existing socket utilities (initializeSocket, etc.), feel free to import and use them instead.
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || "https://default-url.com/api";
-const socket = io(BASE_URL);
+import { initializeSocket, disconnectSocket, emitEvent, listenToEvent, removeEventListener } from "@/utils/socket";
+import * as Location from "expo-location";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAuth } from "@clerk/clerk-expo";
+import useParentDetails from "@/hooks/useParentDetails";
+import ApiClient from "@/api/client";
 
 interface GeoFence {
   _id: string;
@@ -29,7 +25,6 @@ interface GeoFence {
 }
 
 interface ChildLocationUpdate {
-  // The payload we receive from the socket
   latitude: number;
   longitude: number;
   familyCode: string;
@@ -37,8 +32,7 @@ interface ChildLocationUpdate {
 }
 
 interface ChildLocation {
-  // The structure we use to render on the map
-  id: string;    // e.g., "child-<familyCode>"
+  id: string; // e.g., "child-<familyCode>"
   familyCode: string;
   latitude: number;
   longitude: number;
@@ -46,141 +40,149 @@ interface ChildLocation {
 }
 
 export default function ParentHomeScreen() {
-  // 1) Get clerkId (parent user ID) from your auth
   const { userId: clerkId } = useAuth();
-
-  // 2) Fetch parent details, which presumably includes familyCodes
   const { parentDetails, error, refetch } = useParentDetails(clerkId || "");
 
   const [geoFences, setGeoFences] = useState<GeoFence[]>([]);
   const [childLocations, setChildLocations] = useState<ChildLocation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const mapRef = useRef<MapView>(null);
-  const [mapRegion, setMapRegion] = useState<Region | null>(null);
 
-  // -------------------------------
-  //  A) Setup socket listener
-  // -------------------------------
   const socket = initializeSocket();
-  const testLocation = {
-    latitude: -20.1963851,
-    longitude: 57.7226468,
-    familyCode: "152269",
-    timestamp: new Date().toISOString(),
+
+  const fetchUserLocation = async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission Denied", "Location access is required.");
+      return;
+    }
+    const location = await Location.getCurrentPositionAsync({});
+    setUserLocation({
+      latitude: location.coords.latitude,
+      longitude: location.coords.longitude,
+    });
   };
 
-
-  useEffect(() => {
-
-    emitEvent("childLocationUpdate", testLocation);
-  }, [socket]);
-
-  useEffect(() => {
-
-    // Listen for real-time location updates from the socket
-    listenToEvent("childLocationUpdate", (data: ChildLocationUpdate) => {
-      // data = { latitude, longitude, familyCode, timestamp }
-
-      console.log(data)
-      // Check if the parent's familyCodes include the child's familyCode
-      const familyCodes = parentDetails?.familyCodes || [];
-
-      if (!familyCodes.includes(data.familyCode)) {
-        // If this family code isn't part of the parent's codes, ignore it
-        return;
-      }
-
-      // The parent is allowed to see this child's location
-      setChildLocations((prevLocations) => {
-
-        const existingIndex = prevLocations.findIndex(
-          (child) => child.id === `child-${data.familyCode}`
-        );
-        if (existingIndex !== -1) {
-          // Update existing child's location
-          const updatedLocations = [...prevLocations];
-          updatedLocations[existingIndex] = {
-            ...updatedLocations[existingIndex],
-            latitude: data.latitude,
-            longitude: data.longitude,
-            timestamp: data.timestamp,
-          };
-          return updatedLocations;
-        } else {
-          // Add new child's location
-          return [
-            ...prevLocations,
-            {
-              id: `child-${data.familyCode}`,
-              familyCode: data.familyCode,
-              latitude: data.latitude,
-              longitude: data.longitude,
-              timestamp: data.timestamp,
-            },
-          ];
-        }
-      });
-    });
-
-    // Cleanup socket listener
-    return () => {
-      socket.off("locationUpdate"); // remove just this event listener
-      // socket.disconnect();        // or fully disconnect the socket if not used further
-    };
-  }, [socket]);
-
-  // -------------------------------
-  //  B) Zoom Handler
-  // -------------------------------
-  const handleZoom = (zoomFactor: number) => {
-    emitEvent("childLocationUpdate", testLocation);
-    if (mapRegion && mapRef.current) {
-      const newRegion = {
-        ...mapRegion,
-        latitudeDelta: mapRegion.latitudeDelta * zoomFactor,
-        longitudeDelta: mapRegion.longitudeDelta * zoomFactor,
-      };
-      setMapRegion(newRegion);
-      mapRef.current.animateToRegion(newRegion, 1000);
+  const redirectToUserLocation = () => {
+    if (userLocation && mapRef.current) {
+      mapRef.current.animateToRegion(
+        {
+          latitude: userLocation.latitude,
+          longitude: userLocation.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        },
+        1000
+      );
     }
   };
 
-  // -------------------------------
-  //  C) Mock GeoFence Fetch
-  // -------------------------------
-  useEffect(() => {
-    // Simulate fetching geofences from an API
-    setTimeout(() => {
-      const mockGeoFences: GeoFence[] = [
-        {
-          _id: "1",
-          name: "Home",
-          latitude: 37.7749,
-          longitude: -122.4194,
-          radius: 300,
-        },
-        {
-          _id: "2",
-          name: "School",
-          latitude: 37.7849,
-          longitude: -122.4094,
-          radius: 500,
-        },
-      ];
-      setGeoFences(mockGeoFences);
-      setMapRegion({
-        latitude: mockGeoFences[0].latitude,
-        longitude: mockGeoFences[0].longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      });
-      setLoading(false);
-    }, 1000);
-  }, []);
+  const saveChildLocation = async (data: ChildLocation) => {
+    try {
+      const storedData = await AsyncStorage.getItem("childLocations");
+      const parsedData: ChildLocation[] = storedData ? JSON.parse(storedData) : [];
+      const updatedData = parsedData.filter((loc) => loc.id !== data.id);
+      updatedData.push(data);
+      await AsyncStorage.setItem("childLocations", JSON.stringify(updatedData));
+    } catch (error) {
+      console.error("Error saving child location to AsyncStorage:", error);
+    }
+  };
 
-  // -------------------------------
-  //  D) Render
-  // -------------------------------
+  const loadChildLocations = async () => {
+    try {
+      const storedData = await AsyncStorage.getItem("childLocations");
+      if (storedData) {
+        setChildLocations(JSON.parse(storedData));
+      }
+    } catch (error) {
+      console.error("Error loading child locations from AsyncStorage:", error);
+    }
+  };
+
+  const handleChildLocationUpdate = (data: ChildLocationUpdate) => {
+    const familyCodes = parentDetails?.familyCodes || [];
+    if (!familyCodes.includes(data.familyCode)) {
+      console.warn("Received data for an unassociated family code:", data.familyCode);
+      return;
+    }
+
+    const newLocation: ChildLocation = {
+      id: `child-${data.familyCode}`,
+      familyCode: data.familyCode,
+      latitude: data.latitude,
+      longitude: data.longitude,
+      timestamp: data.timestamp,
+    };
+
+    setChildLocations((prevLocations) => {
+      const updatedLocations = prevLocations.filter((loc) => loc.id !== newLocation.id);
+      updatedLocations.push(newLocation);
+      return updatedLocations;
+    });
+
+    saveChildLocation(newLocation);
+
+    if (mapRef.current) {
+      mapRef.current.animateToRegion(
+        {
+          latitude: data.latitude,
+          longitude: data.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        },
+        1000
+      );
+    }
+  };
+
+  const handleSosAlert = (data: any) => {
+    console.log("Received SOS alert:", data);
+  };
+
+  useEffect(() => {
+    listenToEvent("childLocationUpdate", handleChildLocationUpdate);
+    listenToEvent("sosAlert", handleSosAlert);
+
+    return () => {
+      removeEventListener("childLocationUpdate");
+      removeEventListener("sosAlert");
+      console.log("Removed socket event listeners");
+    };
+  }, [parentDetails]);
+
+  const fetchGeoFences = async (parentId: string) => {
+    setLoading(true);
+    try {
+      const response = await ApiClient.get(`/geofencing/parent/${parentId}`);
+      if (response.data.success) {
+        const geoFencesData = response.data.geoFences.map((geo: any) => ({
+          id: geo._id,
+          name: geo.name,
+          latitude: geo.latitude,
+          longitude: geo.longitude,
+          radius: geo.radius,
+        }));
+        setGeoFences(geoFencesData);
+      } else {
+        Alert.alert("No Geofences", response.data.message);
+      }
+    } catch (error: any) {
+      Alert.alert("Error", error.response?.data?.message || "Failed to fetch geofences.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (parentDetails?._id) {
+      fetchGeoFences(parentDetails?._id);
+    }
+    fetchUserLocation();
+    loadChildLocations(); // Load saved child locations on screen load
+  }, [parentDetails?._id]);
+
   if (loading) {
     return (
       <View style={styles.loaderContainer}>
@@ -191,13 +193,20 @@ export default function ParentHomeScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Map Section */}
       <MapView
         ref={mapRef}
         style={styles.map}
-        initialRegion={mapRegion || undefined}
+        initialRegion={
+          userLocation
+            ? {
+                latitude: userLocation.latitude,
+                longitude: userLocation.longitude,
+                latitudeDelta: 0.05,
+                longitudeDelta: 0.05,
+              }
+            : undefined
+        }
       >
-        {/* Render GeoFences */}
         {geoFences.map((geoFence) => (
           <React.Fragment key={geoFence._id}>
             <Marker
@@ -218,8 +227,6 @@ export default function ParentHomeScreen() {
             />
           </React.Fragment>
         ))}
-
-        {/* Render Child Locations */}
         {childLocations.map((child) => (
           <Marker
             key={child.id}
@@ -234,28 +241,14 @@ export default function ParentHomeScreen() {
         ))}
       </MapView>
 
-      {/* Zoom Buttons */}
-      <View style={styles.zoomControls}>
-        <TouchableOpacity style={styles.zoomButton} onPress={() => handleZoom(0.5)}>
-          <Ionicons name="add" size={24} color="#FFF" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.zoomButton} onPress={() => handleZoom(2)}>
-          <Ionicons name="remove" size={24} color="#FFF" />
-        </TouchableOpacity>
-      </View>
-
-      {/* My Places Button */}
-      <TouchableOpacity style={styles.myPlacesButton}>
+      <TouchableOpacity style={styles.myPlacesButton} onPress={redirectToUserLocation}>
         <Ionicons name="home" size={18} color="#F5C543" />
-        <Text style={styles.myPlacesText}>My Places</Text>
+        <Text style={styles.myPlacesText}>My Location</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
-// ---------------------
-//  Styles
-// ---------------------
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -288,19 +281,5 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-  },
-  zoomControls: {
-    position: "absolute",
-    bottom: 50,
-    right: 20,
-    flexDirection: "column",
-  },
-  zoomButton: {
-    backgroundColor: "#F5C543",
-    padding: 10,
-    borderRadius: 50,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 10,
   },
 });

@@ -5,7 +5,7 @@ export default function setupSocket(io: Server) {
     console.log("User connected:", socket.id);
     socket.on("childLocationUpdate", (data) => {
       console.log("Child Location:", data);
-      io.emit("locationUpdate", data);
+      io.emit("childLocationUpdate", data);
     });
     socket.on("sosAlert", (data) => {
       console.log("sosAlert", data);
