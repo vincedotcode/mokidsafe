@@ -17,7 +17,7 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         header: ({ navigation, route }) => (
-          <Header title={route.name === "index" ? "Home" : route.name === "explore" ? "Explore" : "SecureNest"} />
+          <Header title={route.name === "index" ? "Home" : route.name === "explore" ? "Explore" : "MoKidSafe"} />
         ),
         tabBarStyle: {
           backgroundColor: "#FFF",

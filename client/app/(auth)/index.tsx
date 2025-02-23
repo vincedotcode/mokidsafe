@@ -1,18 +1,19 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
 import { useRouter } from "expo-router";
-
+import SafeAreaViewWithKeyboard from "@/components/layout/safe-area-view";
 const ChooseRoleScreen = () => {
   const router = useRouter();
 
   return (
+    <SafeAreaViewWithKeyboard>
     <View style={styles.container}>
           <View style={styles.logoContainer}>
         <Image
           source={require("../../assets/images/logo-black.png")}
           style={styles.logo}
         />
-        <Text style={styles.logoText}>SecureNest</Text>
+        <Text style={styles.logoText}>MoKidSafe</Text>
       </View>
       <Text style={styles.title}>Choose your role</Text>
       <TouchableOpacity
@@ -36,6 +37,7 @@ const ChooseRoleScreen = () => {
         </Text>
       </TouchableOpacity>
     </View>
+      </SafeAreaViewWithKeyboard>
   );
 };
 

@@ -6,11 +6,11 @@ const options = {
   definition: {
     openapi: "3.0.0",
     info: {
-      title: "SecureNest API",
+      title: "MoKidSafe API",
       version: "1.0.0",
       description: `
-        The SecureNest API is a comprehensive backend solution for managing parent-child relationships, real-time tracking, 
-        geofencing, screen time management, and more. This API integrates seamlessly with the SecureNest mobile app, 
+        The MoKidSafe API is a comprehensive backend solution for managing parent-child relationships, real-time tracking, 
+        geofencing, screen time management, and more. This API integrates seamlessly with the MoKidSafe mobile app, 
         ensuring a secure and efficient environment for families.
 
         **Features**

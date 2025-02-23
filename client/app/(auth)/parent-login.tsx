@@ -15,7 +15,8 @@ import { useRouter, usePathname } from "expo-router";
 import * as Notifications from "expo-notifications";
 import * as Location from "expo-location";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-
+import SafeAreaViewWithKeyboard from "@/components/layout/safe-area-view";
+import GoogleSignInButton from "@/components/auth/sign-in-google"; // Import the component
 
 const saveCredentials = async (email: string, password: string) => {
   await SecureStore.setItemAsync("email", email);
@@ -107,6 +108,7 @@ const router = useRouter();
   };
 
   return (
+    <SafeAreaViewWithKeyboard>
     <View style={styles.container}>
       <Spinner visible={loading} />
 
@@ -116,12 +118,14 @@ const router = useRouter();
           source={require("../../assets/images/logo-black.png")}
           style={styles.logo}
         />
-        <Text style={styles.logoText}>SecureNest</Text>
+        <Text style={styles.logoText}>MoKidSafe</Text>
       </View>
 
       {/* Login Form */}
       <View style={styles.card}>
         <Text style={styles.title}>Parent Login</Text>
+        <GoogleSignInButton/>
+        <Text style={styles.orText}>OR</Text>
         <TextInput
           style={styles.input}
           placeholder="Email"
@@ -171,6 +175,8 @@ const router = useRouter();
         </Text>
       </Text>
     </View>
+    </SafeAreaViewWithKeyboard>
+
   );
 }
 
@@ -249,6 +255,12 @@ const styles = StyleSheet.create({
   forgotPasswordContainer: {
     alignSelf: "flex-end",
     marginBottom: 16,
+  },
+  orText: {
+    textAlign: "center",
+    fontSize: 14,
+    color: "#aaa",
+    marginVertical: 16,
   },
   forgotPasswordText: {
     fontSize: 14,

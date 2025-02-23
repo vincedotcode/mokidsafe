@@ -8,7 +8,7 @@ export default function GeoFencingLayout() {
         header: ({ navigation, route }) => (
           <Header
           showBackButton={true}
-          title="SecureNest"
+          title="MoKidSafe"
           />
         ),
         headerTransparent: true, // Transparent header background

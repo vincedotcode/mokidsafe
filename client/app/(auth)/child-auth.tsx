@@ -11,7 +11,7 @@ import {
 import ApiClient from "../../api/client";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-
+import SafeAreaViewWithKeyboard from "@/components/layout/safe-area-view";
 export default function ChildAuthScreen() {
   const [code, setCode] = useState<string[]>(["", "", "", "", "", ""]);
   const refs = useRef<TextInput[]>([]);
@@ -69,13 +69,14 @@ export default function ChildAuthScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaViewWithKeyboard>
+   <View style={styles.container}>
       <View style={styles.logoContainer}>
         <Image
           source={require("../../assets/images/logo-black.png")}
           style={styles.logo}
         />
-        <Text style={styles.logoText}>SecureNest</Text>
+        <Text style={styles.logoText}>MoKidSafe</Text>
       </View>
       <Text style={styles.title}>Enter your invite code</Text>
       <View style={styles.codeContainer}>
@@ -98,6 +99,8 @@ export default function ChildAuthScreen() {
         Don’t have a code? Ask your parent to invite you to the family group.
       </Text>
     </View>
+    </SafeAreaViewWithKeyboard>
+ 
   );
 }
 

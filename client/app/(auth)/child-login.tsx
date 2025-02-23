@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import ApiClient from "../../api/client";
 import { useLocalSearchParams } from "expo-router";
+import SafeAreaViewWithKeyboard from "@/components/layout/safe-area-view";
 
 export default function ChildDetailsScreen() {
   const { parentName, parentId } = useLocalSearchParams<{ parentName: string; parentId: string }>();
@@ -32,6 +33,7 @@ export default function ChildDetailsScreen() {
   };
 
   return (
+    <SafeAreaViewWithKeyboard>
     <View style={styles.container}>
       <Text style={styles.title}>You are the child of {parentName}</Text>
       <TextInput
@@ -54,6 +56,7 @@ export default function ChildDetailsScreen() {
         <Text style={styles.buttonText}>Login</Text>
       </TouchableOpacity>
     </View>
+    </SafeAreaViewWithKeyboard>
   );
 }
 

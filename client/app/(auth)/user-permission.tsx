@@ -78,7 +78,7 @@ const PermissionsScreen = () => {
 
       <View style={styles.contentContainer}>
         <Text style={styles.title}>
-          SecureNest requires these permissions to work
+          MoKidSafe requires these permissions to work
         </Text>
 
         <View style={styles.permissionContainer}>

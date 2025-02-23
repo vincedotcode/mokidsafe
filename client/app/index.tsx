@@ -15,7 +15,7 @@ import {
     useAnimatedStyle,
     useSharedValue,
   } from 'react-native-reanimated';
-  
+  import SafeAreaViewWithKeyboard from '@/components/layout/safe-area-view';
   import { Button } from '../components/onboarding/button';
   import { Pagination } from '../components/onboarding/pagination';
   import { theme } from '../constants/theme';
@@ -126,7 +126,8 @@ import {
     });
   
     return (
-      <View style={styles.container}>
+      <SafeAreaViewWithKeyboard>
+         <View style={styles.container}>
         <Animated.FlatList
           ref={flatListRef as any}
           data={data}
@@ -153,6 +154,8 @@ import {
           />
         </View>
       </View>
+      </SafeAreaViewWithKeyboard>
+     
     );
   }
   

@@ -94,7 +94,7 @@ export default function ParentSignUpScreen() {
             source={require("../../assets/images/logo-black.png")}
             style={styles.logo}
           />
-          <Text style={styles.logoText}>SecureNest</Text>
+          <Text style={styles.logoText}>MoKidSafe</Text>
         </View>
 
         {/* Sign Up Form */}

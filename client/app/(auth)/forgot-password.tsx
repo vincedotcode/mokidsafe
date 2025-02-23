@@ -11,6 +11,7 @@ import {
 import Spinner from "react-native-loading-spinner-overlay";
 import { useSignIn } from "@clerk/clerk-expo";
 import { useRouter } from "expo-router";
+import SafeAreaViewWithKeyboard from "@/components/layout/safe-area-view";
 
 /**
  * Two-step password reset screen using Clerk's "reset_password_email_code" strategy.
@@ -107,6 +108,7 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
+    <SafeAreaViewWithKeyboard>
     <View style={styles.container}>
       {/* Loading Spinner */}
       <Spinner visible={loading} />
@@ -117,7 +119,7 @@ export default function ForgotPasswordScreen() {
           source={require("../../assets/images/logo-black.png")}
           style={styles.logo}
         />
-        <Text style={styles.logoText}>SecureNest</Text>
+        <Text style={styles.logoText}>MoKidSafe</Text>
       </View>
 
       {/* Main Card */}
@@ -194,6 +196,7 @@ export default function ForgotPasswordScreen() {
         </Text>
       </Text>
     </View>
+    </SafeAreaViewWithKeyboard>
   );
 }
 

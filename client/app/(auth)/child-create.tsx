@@ -25,7 +25,6 @@ import { SvgUri } from "react-native-svg";
 import ReusableButton from "@/components/Button";
 import { Ionicons } from "@expo/vector-icons";
 
-
 interface EmergencyContact {
     name: string;
     phoneNumber: string;
@@ -297,7 +296,7 @@ export default function CreateChildScreen(): JSX.Element {
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        backgroundColor: "#F5C543",
+        backgroundColor: "#f8e9b0",
     },
     container: {
         justifyContent: "center",
@@ -354,7 +353,7 @@ const styles = StyleSheet.create({
     },
     button: {
         width: "100%",
-        backgroundColor: "#F5C543",
+        backgroundColor: "#f8e9b0",
         paddingVertical: 14,
         borderRadius: 8,
         alignItems: "center",

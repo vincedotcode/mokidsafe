@@ -9,7 +9,7 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         header: ({ navigation, route }) => (
-          <Header title="SecureNest" />
+          <Header title="MoKidSafe" />
         ),
         tabBarStyle: {
           backgroundColor: "#FFF",
