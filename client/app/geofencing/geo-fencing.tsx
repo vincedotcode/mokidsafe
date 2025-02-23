@@ -157,18 +157,42 @@ export default function GeoFencingScreen() {
 
 
   const fetchUserLocation = async () => {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Permission Denied", "Location access is required.");
-      return;
-    }
-    const location = await Location.getCurrentPositionAsync({});
-    setUserLocation({
-      latitude: location.coords.latitude,
-      longitude: location.coords.longitude,
-    });
-  };
+    setLoading(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Permission Denied", "Location access is required.");
+        setLoading(false);
+        return;
+      }
 
+      const location = await Location.getCurrentPositionAsync({});
+      const newLocation = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      };
+
+      setUserLocation(newLocation);
+
+      // ✅ Move the map to the user's location
+      if (mapRef.current) {
+        mapRef.current.animateToRegion(
+          {
+            latitude: newLocation.latitude,
+            longitude: newLocation.longitude,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          },
+          1000
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching user location:", error);
+      Alert.alert("Error", "Failed to fetch location.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (parentDetails?._id) {
@@ -221,15 +245,13 @@ export default function GeoFencingScreen() {
             />
           </React.Fragment>
         ))}
-           {userLocation && (
-          <Marker
-            coordinate={{
-              latitude: userLocation.latitude,
-              longitude: userLocation.longitude,
-            }}
-            title="Your Location"
-            pinColor="blue"
-          />
+         {/* ✅ Parent's Location Marker */}
+         {userLocation && (
+          <Marker coordinate={userLocation} title="Your Location">
+            <View style={styles.parentMarker}>
+              <Text style={styles.parentMarkerText}>P</Text>
+            </View>
+          </Marker>
         )}
       </MapView>
 
@@ -419,6 +441,21 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 16,
     textAlign: "center",
+  },
+  parentMarker: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#1E90FF",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#FFF",
+  },
+  parentMarkerText: {
+    color: "#FFF",
+    fontSize: 18,
+    fontWeight: "bold",
   },
   input: {
     height: 40,

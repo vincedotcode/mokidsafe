@@ -17,39 +17,38 @@ const LOCATION_TASK_NAME = "BACKGROUND_LOCATION_TASK";
 
 export default function ChildHomeScreen() {
   const mapRef = useRef<MapView>(null);
-
   const [currentLocation, setCurrentLocation] = useState({
     latitude: 0,
     longitude: 0,
   });
-
   const [hasRegionBeenSet, setHasRegionBeenSet] = useState(false);
+
+  // On mount, request foreground permissions and fetch initial location
   useEffect(() => {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        console.log('Permission to access location was denied');
+      if (status !== "granted") {
+        console.log("Permission to access location was denied");
         return;
       }
       const savedFamilyCode = await AsyncStorage.getItem("savedFamilyCode");
-
       const location = await Location.getCurrentPositionAsync({});
       emitEvent("childLocationUpdate", {
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
+        familyCode: savedFamilyCode,
         timestamp: new Date().toISOString(),
       });
       setCurrentLocation({
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
       });
-     
     })();
   }, []);
-  
+
+  // Function to manually redirect map to current location
   const handleRedirect = async () => {
     const savedFamilyCode = await AsyncStorage.getItem("savedFamilyCode");
-
     const location = await Location.getCurrentPositionAsync({});
     emitEvent("childLocationUpdate", {
       latitude: location.coords.latitude,
@@ -65,11 +64,12 @@ export default function ChildHomeScreen() {
           latitudeDelta: 0.01,
           longitudeDelta: 0.01,
         },
-        1000 // Duration of the animation
+        1000
       );
     }
   };
 
+  // Start foreground and background tracking, and set up socket emissions
   useEffect(() => {
     console.log("ChildHomeScreen useEffect mounted!");
     const socket = initializeSocket();
@@ -80,7 +80,6 @@ export default function ChildHomeScreen() {
         Alert.alert("Permission Denied", "Location permission is required!");
         return;
       }
-
       const { granted } = await Location.requestBackgroundPermissionsAsync();
       if (!granted) {
         Alert.alert(
@@ -89,14 +88,13 @@ export default function ChildHomeScreen() {
         );
         return;
       }
-
       console.log("Permissions granted!");
 
       try {
         await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
           accuracy: Location.Accuracy.High,
-          distanceInterval: 1, // Update every 1 meter
-          timeInterval: 1000, // Update every 1 second
+          distanceInterval: 1, // update every 1 meter
+          timeInterval: 1000,  // update every 1 second
           showsBackgroundLocationIndicator: true,
           foregroundService: {
             notificationTitle: "Location Tracking",
@@ -111,7 +109,6 @@ export default function ChildHomeScreen() {
       const initialLocation = await Location.getCurrentPositionAsync({});
       const { latitude, longitude } = initialLocation.coords;
       setCurrentLocation({ latitude, longitude });
-
       if (mapRef.current && !hasRegionBeenSet) {
         setHasRegionBeenSet(true);
         mapRef.current.animateToRegion({
@@ -121,7 +118,6 @@ export default function ChildHomeScreen() {
           longitudeDelta: 0.01,
         });
       }
-
       const savedFamilyCode = await AsyncStorage.getItem("savedFamilyCode");
       emitEvent("childLocationUpdate", {
         latitude,
@@ -130,6 +126,7 @@ export default function ChildHomeScreen() {
         timestamp: new Date().toISOString(),
       });
 
+      // Optional: also watch position in the foreground
       Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.High,
@@ -139,7 +136,6 @@ export default function ChildHomeScreen() {
         async (location) => {
           const { latitude, longitude } = location.coords;
           setCurrentLocation({ latitude, longitude });
-
           const savedFamilyCode = await AsyncStorage.getItem("savedFamilyCode");
           emitEvent("childLocationUpdate", {
             latitude,
@@ -156,8 +152,9 @@ export default function ChildHomeScreen() {
     return () => {
       disconnectSocket();
     };
-  }, []);
+  }, [hasRegionBeenSet]);
 
+  // SOS function to emit an emergency alert
   const handleSOS = async () => {
     const savedFamilyCode = await AsyncStorage.getItem("savedFamilyCode");
     emitEvent("sosAlert", {
@@ -206,7 +203,6 @@ export default function ChildHomeScreen() {
         />
       </MapView>
 
-      {/* Redirect Button */}
       <TouchableOpacity style={styles.redirectButton} onPress={handleRedirect}>
         <Ionicons name="navigate" size={24} color="#FFF" />
         <Text style={styles.redirectText}>Go to Location</Text>
@@ -220,18 +216,17 @@ export default function ChildHomeScreen() {
   );
 }
 
-TaskManager.defineTask(
-  LOCATION_TASK_NAME,
-  async ({ data, error }: { data?: any; error?: any }) => {
-    if (error) {
-      console.error("Error in background location task:", error);
-      return;
-    }
-    if (data) {
-      const { locations } = data;
+// Define the background location task so it runs even when the app is in the background.
+TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }: { data?: any; error?: any }) => {
+  if (error) {
+    console.error("Error in background location task:", error);
+    return;
+  }
+  if (data) {
+    const { locations } = data;
+    if (locations && locations.length > 0) {
       const { latitude, longitude } = locations[0].coords;
       const savedFamilyCode = await AsyncStorage.getItem("savedFamilyCode");
-
       emitEvent("childLocationUpdate", {
         latitude,
         longitude,
@@ -240,15 +235,11 @@ TaskManager.defineTask(
       });
     }
   }
-);
+});
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  map: {
-    flex: 1,
-  },
+  container: { flex: 1 },
+  map: { flex: 1 },
   markerContainer: {
     alignItems: "center",
     justifyContent: "center",

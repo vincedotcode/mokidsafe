@@ -8,10 +8,11 @@ class ParentController {
   constructor() {
     this.parentService = new ParentService();
 
-    // Bind the method explicitly
+    // Bind methods explicitly to ensure `this` context is retained
+    this.createParent = this.createParent.bind(this);
+    this.getAllParents = this.getAllParents.bind(this);
     this.getParentById = this.getParentById.bind(this);
     this.getParentByClerkId = this.getParentByClerkId.bind(this);
-
   }
 
   /**
@@ -63,7 +64,9 @@ class ParentController {
     }
   }
 
-
+  /**
+   * Get Parent by Clerk ID
+   */
   async getParentByClerkId(req: Request, res: Response): Promise<void> {
     const { clerkId } = req.params;
 

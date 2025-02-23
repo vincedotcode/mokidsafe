@@ -12,6 +12,7 @@ export default function useParentDetails(clerkId: string) {
   const fetchParentDetails = async () => {
     try {
       setLoading(true);
+      console.log("this is the clerk id", clerkId)
       const response = await ApiClient.get(`/parents/clerk/${clerkId}`);
       if (response.data.success) {
         const parentData = response.data.parent;

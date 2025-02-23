@@ -56,14 +56,6 @@ class GeoFencingController {
     try {
       const geoFences = await GeoFenceService.getGeoFencesByParentId(parentId);
 
-      if (!geoFences.length) {
-        res.status(404).json({
-          success: false,
-          message: "No GeoFencing entries found for the specified parentId.",
-        });
-        return;
-      }
-
       res.status(200).json({
         success: true,
         message: "GeoFencing entries retrieved successfully.",

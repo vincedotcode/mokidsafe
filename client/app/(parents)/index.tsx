@@ -6,12 +6,11 @@ import {
   Text,
   ActivityIndicator,
   Alert,
+  Modal,
 } from "react-native";
-import MapView, { Marker, Circle, Region } from "react-native-maps";
+import MapView, { Marker, Circle } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
-import { initializeSocket, disconnectSocket, emitEvent, listenToEvent, removeEventListener } from "@/utils/socket";
 import * as Location from "expo-location";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "@clerk/clerk-expo";
 import useParentDetails from "@/hooks/useParentDetails";
 import ApiClient from "@/api/client";
@@ -24,15 +23,8 @@ interface GeoFence {
   radius: number;
 }
 
-interface ChildLocationUpdate {
-  latitude: number;
-  longitude: number;
-  familyCode: string;
-  timestamp: string;
-}
-
 interface ChildLocation {
-  id: string; // e.g., "child-<familyCode>"
+  id: string;
   familyCode: string;
   latitude: number;
   longitude: number;
@@ -41,34 +33,72 @@ interface ChildLocation {
 
 export default function ParentHomeScreen() {
   const { userId: clerkId } = useAuth();
-  const { parentDetails, error, refetch } = useParentDetails(clerkId || "");
-
+  const { parentDetails } = useParentDetails(clerkId || "");
   const [geoFences, setGeoFences] = useState<GeoFence[]>([]);
   const [childLocations, setChildLocations] = useState<ChildLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [selectedGeoFence, setSelectedGeoFence] = useState<GeoFence | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
   const mapRef = useRef<MapView>(null);
-  const [mapRegion, setMapRegion] = useState<Region | null>(null);
-
-  const socket = initializeSocket();
 
   const fetchUserLocation = async () => {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Permission Denied", "Location access is required.");
-      return;
+    setLoading(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Permission Denied", "Location access is required.");
+        setLoading(false);
+        return;
+      }
+      const location = await Location.getCurrentPositionAsync({});
+      setUserLocation({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+    } catch (error) {
+      console.error("Error fetching user location:", error);
+      Alert.alert("Error", "Failed to fetch location.");
+    } finally {
+      setLoading(false);
     }
-    const location = await Location.getCurrentPositionAsync({});
-    setUserLocation({
-      latitude: location.coords.latitude,
-      longitude: location.coords.longitude,
-    });
   };
 
+  // Fetch geofences using the parent's ID
+  const fetchGeoFences = async (parentId: string) => {
+    try {
+      const response = await ApiClient.get(`/geofencing/parent/${parentId}`);
+      if (response.data.success) {
+        const geoFencesData = response.data.geoFences.map((geo: any) => ({
+          _id: geo._id,
+          name: geo.name,
+          latitude: geo.latitude,
+          longitude: geo.longitude,
+          radius: geo.radius,
+        }));
+        setGeoFences(geoFencesData);
+      } else {
+        Alert.alert("No Geofences", response.data.message);
+      }
+    } catch (error: any) {
+      console.error("Error fetching geofences:", error);
+      Alert.alert("Error", error.response?.data?.message || "Failed to fetch geofences.");
+    }
+  };
+
+  useEffect(() => {
+    fetchUserLocation();
+  }, []);
+
+  useEffect(() => {
+    if (parentDetails?._id) {
+      fetchUserLocation();
+      fetchGeoFences(parentDetails._id);
+    }
+  }, [parentDetails?._id]);
+
   const redirectToUserLocation = () => {
-    fetchUserLocation()
     if (userLocation && mapRef.current) {
-      console.log(userLocation)
       mapRef.current.animateToRegion(
         {
           latitude: userLocation.latitude,
@@ -81,136 +111,6 @@ export default function ParentHomeScreen() {
     }
   };
 
-  const saveChildLocation = async (data: ChildLocation) => {
-    try {
-      const storedData = await AsyncStorage.getItem("childLocations");
-      const parsedData: ChildLocation[] = storedData ? JSON.parse(storedData) : [];
-      const updatedData = parsedData.filter((loc) => loc.id !== data.id);
-      updatedData.push(data);
-      await AsyncStorage.setItem("childLocations", JSON.stringify(updatedData));
-    } catch (error) {
-      console.error("Error saving child location to AsyncStorage:", error);
-    }
-  };
-
-  const loadChildLocations = async () => {
-    try {
-      const storedData = await AsyncStorage.getItem("childLocations");
-      console.log(storedData)
-      if (storedData) {
-        setChildLocations(JSON.parse(storedData));
-      }
-    } catch (error) {
-      console.error("Error loading child locations from AsyncStorage:", error);
-    }
-  };
-
-  const handleChildLocationUpdate = (data: ChildLocationUpdate) => {
-    const familyCodes = parentDetails?.familyCodes || [];
-    if (!familyCodes.includes(data.familyCode)) {
-      console.warn("Received data for an unassociated family code:", data.familyCode);
-      return;
-    }
-
-    const newLocation: ChildLocation = {
-      id: `child-${data.familyCode}`,
-      familyCode: data.familyCode,
-      latitude: data.latitude,
-      longitude: data.longitude,
-      timestamp: data.timestamp,
-    };
-
-    setChildLocations((prevLocations) => {
-      const updatedLocations = prevLocations.filter((loc) => loc.id !== newLocation.id);
-      updatedLocations.push(newLocation);
-      return updatedLocations;
-    });
-
-    saveChildLocation(newLocation);
-
-    if (mapRef.current) {
-      mapRef.current.animateToRegion(
-        {
-          latitude: data.latitude,
-          longitude: data.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        },
-        1000
-      );
-    }
-  };
-
-  const handleSosAlert = (data: any) => {
-    console.log("Received SOS alert:", data);
-  };
-
-  useEffect(() => {
-    listenToEvent("childLocationUpdate", handleChildLocationUpdate);
-    listenToEvent("sosAlert", handleSosAlert);
-
-    return () => {
-      removeEventListener("childLocationUpdate");
-      removeEventListener("sosAlert");
-      console.log("Removed socket event listeners");
-    };
-  }, [parentDetails]);
-
-  const fetchGeoFences = async (parentId: string) => {
-    setLoading(true);
-    try {
-      const response = await ApiClient.get(`/geofencing/parent/${parentId}`);
-      if (response.data.success) {
-        const geoFencesData = response.data.geoFences.map((geo: any) => ({
-          id: geo._id,
-          name: geo.name,
-          latitude: geo.latitude,
-          longitude: geo.longitude,
-          radius: geo.radius,
-        }));
-        setGeoFences(geoFencesData);
-      } else {
-        Alert.alert("No Geofences", response.data.message);
-      }
-    } catch (error: any) {
-      Alert.alert("Error", error.response?.data?.message || "Failed to fetch geofences.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (parentDetails?._id) {
-      fetchGeoFences(parentDetails?._id);
-    }
-    fetchUserLocation();
-    loadChildLocations(); 
-  }, [parentDetails?._id]);
-
-  const testLocation = {
-    latitude: -20.1963851,
-    longitude: 57.7226468,
-    familyCode: "152269",
-    timestamp: new Date().toISOString(),
-  };
-
-
-  const handleZoom = (zoomFactor: number) => {
-    emitEvent("childLocationUpdate", testLocation);
-    if (mapRegion && mapRef.current) {
-      const newRegion = {
-        ...mapRegion,
-        latitudeDelta: mapRegion.latitudeDelta * zoomFactor,
-        longitudeDelta: mapRegion.longitudeDelta * zoomFactor,
-      };
-      setMapRegion(newRegion);
-      mapRef.current.animateToRegion(newRegion, 1000);
-    }
-  };
-
-
-
-
   if (loading) {
     return (
       <View style={styles.loaderContainer}>
@@ -218,7 +118,6 @@ export default function ParentHomeScreen() {
       </View>
     );
   }
-
 
   return (
     <View style={styles.container}>
@@ -236,26 +135,44 @@ export default function ParentHomeScreen() {
             : undefined
         }
       >
+        {/* Parent's Location Marker */}
+        {userLocation && (
+          <Marker coordinate={userLocation}>
+            <View style={styles.parentMarker}>
+              <Text style={styles.parentMarkerText}>P</Text>
+            </View>
+          </Marker>
+        )}
+
+        {/* Geofences: Render as a Circle that is touchable */}
         {geoFences.map((geoFence) => (
-          <React.Fragment key={geoFence._id}>
-            <Marker
-              coordinate={{
-                latitude: geoFence.latitude,
-                longitude: geoFence.longitude,
-              }}
-              title={geoFence.name}
-            />
-            <Circle
-              center={{
-                latitude: geoFence.latitude,
-                longitude: geoFence.longitude,
-              }}
-              radius={geoFence.radius}
-              strokeColor="rgba(255,0,0,0.8)"
-              fillColor="rgba(255,0,0,0.2)"
-            />
-          </React.Fragment>
-        ))}
+  <React.Fragment key={geoFence._id}>
+    <Circle
+      center={{
+        latitude: geoFence.latitude,
+        longitude: geoFence.longitude,
+      }}
+      radius={500} // Fixed, larger radius
+      strokeColor="rgba(255,0,0,0.8)"
+      fillColor="rgba(255,0,0,0.2)"
+    />
+    <Marker
+      coordinate={{
+        latitude: geoFence.latitude,
+        longitude: geoFence.longitude,
+      }}
+      onPress={() => {
+        setSelectedGeoFence(geoFence);
+        setModalVisible(true);
+      }}
+      opacity={0} // Invisible marker to capture touches
+    />
+  </React.Fragment>
+))}
+
+
+
+        {/* Child Location Markers */}
         {childLocations.map((child) => (
           <Marker
             key={child.id}
@@ -270,23 +187,72 @@ export default function ParentHomeScreen() {
         ))}
       </MapView>
 
-       {/* Zoom Buttons */}
-       <View style={styles.zoomControls}>
-        <TouchableOpacity style={styles.zoomButton} onPress={() => handleZoom(0.5)}>
-          <Ionicons name="add" size={24} color="#FFF" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.zoomButton} onPress={() => handleZoom(2)}>
-          <Ionicons name="remove" size={24} color="#FFF" />
-        </TouchableOpacity>
-      </View>
-
+    
+      {/* My Location Button */}
       <TouchableOpacity style={styles.myPlacesButton} onPress={redirectToUserLocation}>
         <Ionicons name="home" size={18} color="#F5C543" />
         <Text style={styles.myPlacesText}>My Location</Text>
       </TouchableOpacity>
+
+      {/* Modal for Geofence Details */}
+      <Modal visible={modalVisible} transparent animationType="slide">
+        <View style={modalStyles.modalContainer}>
+          <View style={modalStyles.modalContent}>
+            <View style={modalStyles.flagContainer}>
+              <Ionicons name="flag" size={48} color="red" />
+              <Text style={modalStyles.flagText}>
+                {selectedGeoFence ? selectedGeoFence.name : ""}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={modalStyles.closeButton}
+              onPress={() => setModalVisible(false)}
+            >
+              <Text style={modalStyles.closeButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
+
+const modalStyles = StyleSheet.create({
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  modalContent: {
+    width: "80%",
+    padding: 20,
+    backgroundColor: "#FFF",
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  flagContainer: {
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  flagText: {
+    marginTop: 10,
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "red",
+    textAlign: "center",
+  },
+  closeButton: {
+    backgroundColor: "#F5C543",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  closeButtonText: {
+    color: "#FFF",
+    fontWeight: "bold",
+  },
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -294,6 +260,21 @@ const styles = StyleSheet.create({
   },
   map: {
     flex: 1,
+  },
+  parentMarker: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#1E90FF",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#FFF",
+  },
+  parentMarkerText: {
+    color: "#FFF",
+    fontSize: 18,
+    fontWeight: "bold",
   },
   myPlacesButton: {
     position: "absolute",
@@ -321,7 +302,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-
   zoomControls: {
     position: "absolute",
     bottom: 50,
