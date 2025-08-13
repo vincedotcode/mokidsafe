@@ -12,6 +12,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useHasChild } from "@/hooks/useHasChild"; 
 
 import { useColorScheme } from '@/hooks/useColorScheme';
+import React from 'react';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();

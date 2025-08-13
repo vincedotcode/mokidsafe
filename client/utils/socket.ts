@@ -1,7 +1,7 @@
 import { io, Socket } from "socket.io-client";
 
 
-const SOCKET_URL = process.env.EXPO_PUBLIC_API_URL || 'https://mokidsafe.onrender.com/api';
+const SOCKET_URL = process.env.EXPO_PUBLIC_API_URL + '/api';
 
 
 let socket: Socket | null = null;

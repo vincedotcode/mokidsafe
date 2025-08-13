@@ -98,6 +98,7 @@ export default function CreateChildScreen(): JSX.Element {
     ]);
   };
   const handleChildClick = (childId: string) => {
+    console.log("child id", childId)
     router.push(`/children/${childId}`);
   };
 
