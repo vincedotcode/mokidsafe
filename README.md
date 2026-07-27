@@ -1,99 +1,114 @@
-# MoKidSafe
+# MoKidSafe 🛡️
 
-MoKidSafe is a mobile application designed to keep children safe and give parents peace of mind. Built with React Native (Expo) on the frontend and Node.js with Express on the backend, it provides real‑time location tracking, geofencing alerts, screen‑time monitoring and emergency communication between guardians and their children.
+**A child-safety mobile app: live location, geofence alerts, SOS, screen-time tracking, and a direct line between parent and child.**
+
+Built with Expo / React Native on the front and Express + MongoDB behind it, with Socket.IO carrying anything that needs to arrive *now*.
+
+---
 
 ## Features
 
-- **Real‑time location tracking** – parents can view their child’s current location and movement history in the app.
-- **Geofencing alerts** – set safe zones; parents receive notifications if a child leaves or enters a designated area.
-- **Emergency alerts** – children can send an immediate SOS alert to their guardians; the app uses push notifications.
-- **Screen‑time monitoring** – track and chart device usage to help parents manage healthy screen time.
-- **Secure authentication** – uses Clerk for sign‑up and login, with sessions stored securely.
-- **Real‑time chat** – communication between parents and children via WebSockets (Socket.IO).
-- **Cross‑platform** – runs on iOS, Android and the web via Expo Router; dark/light mode supported.
-- **Backend API** – built with Node.js and Express, connected to MongoDB via Mongoose, and documented with Swagger.
+| | |
+|---|---|
+| **Live location** | Parents see their child's current position and movement history on a native map (`react-native-maps`) |
+| **Geofencing** | Define safe zones; entering or leaving one fires a push notification. Runs via `expo-task-manager` so it keeps working in the background |
+| **SOS alerts** | One tap from the child sends an immediate alert to every linked guardian |
+| **Screen-time tracking** | Device usage charted over time so parents can see patterns rather than just totals |
+| **Real-time chat** | Parent ↔ child messaging over Socket.IO |
+| **Secure auth** | Clerk handles sign-up, login and session management; tokens live in `expo-secure-store`, not AsyncStorage |
+| **Cross-platform** | iOS, Android and web from one Expo Router codebase |
 
-## Technology Stack
+---
 
-- **Mobile client (Expo/React Native)**  
-  - Expo CLI & Router for quick development.  
-  - React Navigation for routing.  
-  - Tailwind‑style styling via NativeWind.  
-  - Location, notifications, haptics and secure storage through Expo modules.  
-  - Real‑time communication through `socket.io-client`.
+## Stack
 
-- **Server (Node.js/Express)**  
-  - Express for RESTful API routes.  
-  - MongoDB with Mongoose for data persistence.  
-  - Socket.IO for real‑time updates.  
-  - Swagger for API documentation.
+**Mobile client**
+- Expo SDK 52 + Expo Router 4 (file-based routing)
+- React Native 0.76, TypeScript
+- NativeWind (Tailwind syntax for React Native)
+- `expo-location` + `expo-task-manager` — background location and geofencing
+- `expo-notifications` — push
+- `react-native-maps` — map rendering
+- `react-native-chart-kit` — screen-time charts
+- `@clerk/clerk-expo` — auth
+- `socket.io-client` — real-time transport
 
-## Getting Started
+**Server**
+- Node.js + Express, written in TypeScript
+- MongoDB via Mongoose
+- Socket.IO for location broadcasts and chat
+- Svix for webhook verification (Clerk user sync)
+- Swagger (`swagger-jsdoc` + `swagger-ui-express`) at `/api-docs`
 
-### Prerequisites
+---
 
-- [Node.js](https://nodejs.org/) >= 18.  
-- [Expo CLI](https://docs.expo.dev/workflow/expo-cli/) installed globally.
-- A MongoDB database (can be local or managed like Atlas).
+## Repository layout
 
-### Installation
+```
+mokidsafe/
+├── client/     # Expo / React Native app
+└── server/     # Express + Socket.IO API (TypeScript)
+```
 
-1. **Clone the repository:**
+---
 
-   ```bash
-   git clone https://github.com/vincedotcode/mokidsafe.git
-   cd mokidsafe
-   ```
+## Running locally
 
-2. **Setup the mobile client:**
+**Prerequisites:** Node.js 18+, the Expo CLI, a MongoDB database, and a Clerk application.
 
-   ```bash
-   cd client
-   npm install        # or pnpm install
-   ```
+```bash
+git clone https://github.com/vincedotcode/mokidsafe.git
+cd mokidsafe
+```
 
-   - Create a `.env` file (or copy from `.env.example` if provided) with any required client‑side keys.
+**Server**
 
-3. **Start the mobile client:**
+```bash
+cd server
+npm install
+cp .env.example .env
+npm run dev
+```
 
-   ```bash
-   npm start          # starts the Expo development server
-   ```
+```bash
+MONGODB_URI=
+PORT=3000
+CLERK_WEBHOOK_SECRET=
+```
 
-   Use the Expo app on your device or an emulator to run the mobile app.  
+**Client**
 
-4. **Setup the backend server:**
+```bash
+cd ../client
+npm install
+npm start
+```
 
-   ```bash
-   cd ../server
-   npm install
-   cp .env.example .env   # create your environment file with MongoDB URI and other secrets
-   npm run dev            # start the server with nodemon
-   ```
+Scan the QR code with Expo Go, or press `i` / `a` for a simulator. Note that **background location and geofencing need a physical device** — they do not behave correctly in a simulator.
 
-   The API will run on the port specified in `.env` (default 3000).  
+```bash
+EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=
+EXPO_PUBLIC_API_URL=
+```
 
-## API Documentation
+---
 
-The backend includes Swagger documentation accessible at `/api-docs` when the server is running. It describes all available endpoints for users, authentication, location updates, notifications, etc.
+## A note on permissions
 
-## Contributing
+Background location is the hard part of this app, not the maps. iOS and Android both treat "always allow" as a privileged permission with its own prompt flow, and both will silently downgrade it if the user isn't asked in the right order. The permission sequencing in `client/` is deliberate — changing its order will break geofencing on real devices while still appearing to work in Expo Go.
 
-Contributions are welcome! If you find a bug or want to add new features:
-
-1. Fork the repository and create a feature branch:
-   ```bash
-   git checkout -b my-feature
-   ```
-2. Commit your changes with clear messages.
-3. Push to your fork and open a pull request.
-
-Please ensure your code follows the existing style and passes linting. New features should include tests where appropriate.
-
-## License
-
-This project is licensed under the MIT License. See the `LICENSE` file for more details.
+---
 
 ## Disclaimer
 
-MoKidSafe is intended as a supplementary tool for parental awareness. It should not replace active supervision or professional safety measures.
+MoKidSafe is a supplementary awareness tool for guardians. It is not a substitute for supervision, and it should not be relied on as a sole safety measure.
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+## Contact
+
+Vince Erkadoo — [vincedotcode.com](https://vincedotcode.com) · [vince@vincedotcode.com](mailto:vince@vincedotcode.com)
